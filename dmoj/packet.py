@@ -210,8 +210,13 @@ class PacketManager:
                 
                 # Add test case input and expected output data
                 try:
-                    case_data['input'] = result.case.input_data().decode('utf-8', errors='replace')
-                    case_data['expected-output'] = result.case.output_data().decode('utf-8', errors='replace')
+                    # Check if the case has the necessary attributes and methods
+                    if hasattr(result.case, 'input_data') and hasattr(result.case, 'output_data'):
+                        case_data['input'] = result.case.input_data().decode('utf-8', errors='replace')
+                        case_data['expected-output'] = result.case.output_data().decode('utf-8', errors='replace')
+                    else:
+                        case_data['input'] = ''
+                        case_data['expected-output'] = ''
                 except Exception as e:
                     # Fallback if data can't be read
                     log.warning('Could not read test case data for position %d: %s', position, e)
