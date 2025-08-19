@@ -48,7 +48,15 @@ class OutputOnlyGrader(StandardGrader):
         if self.language != 'OUTPUT':
             return super().grade(case)
 
-        result = Result(case)
+        # Extract input and output data before creating Result
+        try:
+            input_data_str = case.input_data().decode('utf-8', errors='replace')
+            expected_output_str = case.output_data().decode('utf-8', errors='replace')
+        except Exception:
+            input_data_str = ''
+            expected_output_str = ''
+        
+        result = Result(case, input_data=input_data_str, expected_output=expected_output_str)
 
         start_time = time.time()
         try:

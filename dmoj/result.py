@@ -46,6 +46,8 @@ class Result:
         feedback: str = '',
         extended_feedback: str = '',
         points: float = 0,
+        input_data: str = '',
+        expected_output: str = '',
     ):
         self.case: 'TestCase' = case
         self.result_flag: int = result_flag
@@ -58,6 +60,8 @@ class Result:
         self.feedback: str = feedback
         self.extended_feedback: str = extended_feedback
         self.points: float = points
+        self.input_data: str = input_data
+        self.expected_output: str = expected_output
 
     def get_main_code(self) -> int:
         for flag in Result.CODE_DISPLAY_ORDER:
