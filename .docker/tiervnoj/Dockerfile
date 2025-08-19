@@ -38,8 +38,12 @@ RUN ARCH=$([ $(uname -m) = "x86_64" ] && echo "amd64" || echo "arm64") && \
 
 ENV PATH="/opt/kotlin/bin:/opt/pypy2/bin:/opt/pypy3/bin:/home/judge/.cargo/bin:${PATH}"
 
-RUN mkdir /judge /problems && cd /judge && \
-	curl -L https://github.com/VNOI-Admin/judge-server/archive/"${TAG}".tar.gz | tar -xz --strip-components=1 && \
+RUN mkdir /judge /problems
+
+# Copy our modified judge-server code instead of downloading from GitHub
+COPY . /judge
+
+RUN cd /judge && \
 	python3 -m venv --prompt=DMOJ /env && \
 	/env/bin/pip3 install cython setuptools && \
 	/env/bin/pip3 install -e . && \
