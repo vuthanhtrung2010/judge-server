@@ -7,12 +7,10 @@ class Executor(GCCMixin, CPPExecutor):
     std = 'c++23'
     test_program = """
 #include <iostream>
-#include <format> // for std::print
 
-#if __cplusplus == 202302L
+#if __cplusplus >= 202302L
 int main() {
-    auto input = std::cin.rdbuf();
-    std::print("{}", input); // C++23 feature
+    std::cout << std::cin.rdbuf();
     return 0;
 }
 #endif
