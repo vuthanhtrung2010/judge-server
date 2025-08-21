@@ -65,7 +65,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Download docker image
-        run: docker pull vnoj/runtimes-tier3
+        run: docker pull vuthanhtrung2010/runtimes-tier3
       - name: Install python
         run: |
           curl -L "https://github.com/VNOI-Admin/runtimes-python/releases/latest/download/python${{ matrix.python-version }}-amd64.tar.gz" |
