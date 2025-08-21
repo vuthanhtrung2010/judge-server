@@ -1,4 +1,4 @@
-FROM vnoj/runtimes-tier2
+FROM vuthanhtrung2010/runtimes-tier2
 
 ARG TAG=master
 

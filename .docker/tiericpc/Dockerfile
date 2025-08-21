@@ -1,4 +1,4 @@
-FROM vnoj/runtimes-tiericpc
+FROM vuthanhtrung2010/runtimes-tiericpc
 
 ARG TAG=master
 
