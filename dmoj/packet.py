@@ -191,34 +191,27 @@ class PacketManager:
             if not self._testcase_queue:
                 return
 
-            cases_data = []
-            for position, result in self._testcase_queue:
-                case_data = {
-                    'position': position,
-                    'status': result.result_flag,
-                    'time': result.execution_time,
-                    'points': result.points,
-                    'total-points': result.total_points,
-                    'memory': result.max_memory,
-                    'output': result.output,
-                    'extended-feedback': result.extended_feedback,
-                    'feedback': result.feedback,
-                    'voluntary-context-switches': result.context_switches[0],
-                    'involuntary-context-switches': result.context_switches[1],
-                    'runtime-version': result.runtime_version,
-                }
-                
-                # Add test case input and expected output data from Result object
-                case_data['input'] = getattr(result, 'input_data', '')
-                case_data['expected-output'] = getattr(result, 'expected_output', '')
-                
-                cases_data.append(case_data)
-
             self._send_packet(
                 {
                     'name': 'test-case-status',
                     'submission-id': self.judge.current_submission.id,
-                    'cases': cases_data,
+                    'cases': [
+                        {
+                            'position': position,
+                            'status': result.result_flag,
+                            'time': result.execution_time,
+                            'points': result.points,
+                            'total-points': result.total_points,
+                            'memory': result.max_memory,
+                            'output': result.output,
+                            'extended-feedback': result.extended_feedback,
+                            'feedback': result.feedback,
+                            'voluntary-context-switches': result.context_switches[0],
+                            'involuntary-context-switches': result.context_switches[1],
+                            'runtime-version': result.runtime_version,
+                        }
+                        for position, result in self._testcase_queue
+                    ],
                 }
             )
 

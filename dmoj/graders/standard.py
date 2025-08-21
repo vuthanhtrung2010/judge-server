@@ -16,15 +16,7 @@ log = logging.getLogger('dmoj.graders')
 
 class StandardGrader(BaseGrader):
     def grade(self, case: TestCase) -> Result:
-        # Extract input and output data before creating Result
-        try:
-            input_data_str = case.input_data().decode('utf-8', errors='replace')
-            expected_output_str = case.output_data().decode('utf-8', errors='replace')
-        except Exception:
-            input_data_str = ''
-            expected_output_str = ''
-        
-        result = Result(case, input_data=input_data_str, expected_output=expected_output_str)
+        result = Result(case)
 
         input_file = case.input_data_io()
 
