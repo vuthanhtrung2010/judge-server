@@ -1,5 +1,6 @@
 from dmoj.executors.c_like_executor import CPPExecutor, GCCMixin
 
+
 class Executor(GCCMixin, CPPExecutor):
     command = 'g++23'
     command_paths = ['g++-15', 'g++']
