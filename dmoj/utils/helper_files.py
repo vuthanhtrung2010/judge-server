@@ -53,7 +53,7 @@ def compile_with_auxiliary_files(
     use_c = any(map(lambda name: os.path.splitext(name)[1] in ['.c'], filenames))
     if not lang:
         if use_cpp:
-            lang = find_runtime('CPP20', 'CPP17', 'CPP14', 'CPP11', 'CPP03')
+            lang = find_runtime('CPP23', 'CPP20', 'CPP17', 'CPP14', 'CPP11', 'CPP03')
         elif use_c:
             lang = find_runtime('C11', 'C')
 

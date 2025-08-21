@@ -184,7 +184,7 @@ class CommunicationGrader(StandardGrader):
         if 'signature' not in self.problem.config.communication:
             return super()._generate_binary()
 
-        cpp_siggraders = ('C', 'C11', 'CPP03', 'CPP11', 'CPP14', 'CPP17', 'CPP20', 'CPPTHEMIS', 'CLANG', 'CLANGX')
+        cpp_siggraders = ('C', 'C11', 'CPP03', 'CPP11', 'CPP14', 'CPP17', 'CPP20', 'CPP23', 'CPPTHEMIS', 'CLANG', 'CLANGX')
         java_siggraders = ('JAVA', 'JAVA8', 'JAVA9', 'JAVA10', 'JAVA11', 'JAVA15', 'JAVA17')
 
         if self.language in cpp_siggraders:
