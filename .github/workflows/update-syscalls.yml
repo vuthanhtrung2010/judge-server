@@ -4,7 +4,7 @@ on:
     - cron: '0 0 * * *'
 jobs:
   build:
-    if: github.repository == 'DMOJ/judge-server'
+    if: github.repository == 'vuthanhtrung2010/judge-server'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -20,8 +20,8 @@ jobs:
       uses: peter-evans/create-pull-request@v4
       with:
         token: ${{ secrets.REPO_SCOPED_TOKEN }}
-        author: dmoj-build <build@dmoj.ca>
-        committer: dmoj-build <build@dmoj.ca>
+        author: yacps-build <build@trunghsgs.edu.vn>
+        committer: yacps-build <build@trunghsgs.edu.vn>
         commit-message: 'cptbox: update syscall lists'
         title: 'Update syscall lists'
         body: This PR has been auto-generated to update the syscall definitions in `cptbox`.
