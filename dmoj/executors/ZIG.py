@@ -14,9 +14,12 @@ class Executor(StripCarriageReturnsMixin, CompiledExecutor):
     compiler_time_limit = 30
     compiler_read_fs = [
         RecursiveDir('~/.cache'),
+        RecursiveDir('/opt/zig/lib'),
     ]
-    compiler_write_fs = compiler_read_fs
-    compiler_required_dirs = ['~/.cache']
+    compiler_write_fs = [
+        RecursiveDir('~/.cache'),
+    ]
+    compiler_required_dirs = ['~/.cache', '/opt/zig/lib']
     test_program = """
 const std = @import("std");
 
@@ -26,7 +29,7 @@ pub fn main() !void {
     const stdout = std.io.getStdOut().outStream();
 
     var line_buf: [50]u8 = undefined;
-    while (try stdin.readUntilDelimiterOrEof(&line_buf, '\n')) |line| {
+    while (try stdin.readUntilDelimiterOrEof(&line_buf, '\\n')) |line| {
         if (line.len == 0) break;
         try stdout.print("{}", .{line});
     }
