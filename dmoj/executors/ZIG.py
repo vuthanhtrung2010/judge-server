@@ -6,8 +6,6 @@ from dmoj.executors.compiled_executor import CompiledExecutor
 from dmoj.executors.mixins import StripCarriageReturnsMixin
 
 
-# Need to strip carriage returns because otherwise Zig refuses to compile.
-# See <https://github.com/ziglang/zig/issues/544>.
 class Executor(StripCarriageReturnsMixin, CompiledExecutor):
     ext = 'zig'
     command = 'zig'
@@ -15,18 +13,29 @@ class Executor(StripCarriageReturnsMixin, CompiledExecutor):
     compiler_read_fs = [
         RecursiveDir('~/.cache'),
         RecursiveDir('/opt/zig/lib'),
+        RecursiveDir('/usr/include'),
+        RecursiveDir('/usr/lib'),
+        RecursiveDir('/lib'),
+        RecursiveDir('/lib64'),
     ]
     compiler_write_fs = [
         RecursiveDir('~/.cache'),
     ]
-    compiler_required_dirs = ['~/.cache', '/opt/zig/lib']
+    compiler_required_dirs = [
+        '~/.cache',
+        '/opt/zig/lib',
+        '/usr/include',
+        '/usr/lib',
+        '/lib',
+        '/lib64',
+    ]
+
     test_program = """
 const std = @import("std");
 
 pub fn main() !void {
-    const io = std.io;
-    const stdin = std.io.getStdIn().inStream();
-    const stdout = std.io.getStdOut().outStream();
+    const stdin = std.io.getStdIn().reader();
+    const stdout = std.io.getStdOut().writer();
 
     var line_buf: [50]u8 = undefined;
     while (try stdin.readUntilDelimiterOrEof(&line_buf, '\\n')) |line| {
