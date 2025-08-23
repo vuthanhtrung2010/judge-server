@@ -36,7 +36,7 @@ pub fn main() !void {
         command = self.get_command()
         assert command is not None
         assert self._code is not None
-        return [command, 'build-exe', self._code, '--release-safe', '--name', self.problem]
+        return [command, 'build-exe', self._code, '-O', 'ReleaseFast', '--name', self.problem]
 
     @classmethod
     def get_version_flags(cls, command: str) -> List[VersionFlags]:
