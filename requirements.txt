@@ -3,6 +3,7 @@ pylru
 pygments
 pyyaml
 requests
+boto3
 setproctitle
 termcolor
 watchdog
