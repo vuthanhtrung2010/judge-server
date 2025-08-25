@@ -255,7 +255,7 @@ class PacketManager:
         name = packet['name']
         if name == 'ping':
             self.ping_packet(packet['when'])
-            self.sync_testcases(packet['when'], packet['storage-endpoint'], packet['storage-access-key-id'], packet['storage-secret-access-key'], packet['storage-bucket'], packet.get('storage-region', 'auto'))
+            self.sync_testcases(packet['storage-endpoint'], packet['storage-access-key-id'], packet['storage-secret-access-key'], packet['storage-bucket'], packet.get('storage-region', 'auto'))
         elif name == 'get-current-submission':
             self.current_submission_packet()
         elif name == 'submission-request':
