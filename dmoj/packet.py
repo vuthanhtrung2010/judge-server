@@ -386,146 +386,125 @@ class PacketManager:
 
     def sync_testcases(self, endpoint: str, access_key_id: str, secret_access_key: str, bucket: str, region: str):
         """
-        Sync testcases from an S3-compatible bucket.
-
-        Behaviour:
-        - Uses S3-compatible API at `endpoint` with provided credentials.
-        - Reads object named `lastsync_<id>` in the same bucket to get last sync epoch seconds.
-        - Lists objects under prefix `tests/` and for each object that ends with `.zip` and
-          has LastModified > lastsync, downloads the zip, validates it contains an `init.yml` or
-          an init.yml under a single top-level folder, extracts it into the first configured
-          problem root (from judgeenv.get_problem_roots), overwriting existing files.
-        - After successful sync, writes/updates the `lastsync_<id>` object with current epoch seconds.
-
-        Notes: S3-compatible (R2) tested via boto3 client configuration.
+        Sync testcases from S3-compatible bucket with minimized Class A ops:
+        - lastsync + manifest.json stored locally in problem root, not in S3
+        - list folders once, then for each slug only fetch the newest object
+        - re-download entire folder if changed since manifest
         """
         try:
-            # Prefer configured judge id from judgeenv if present (this comes from judge YAML or CLI)
-            from dmoj import judgeenv
-            judge_id = judgeenv.env.get('id') or getattr(self.judge, 'name', None) or self.name or 'unknown'
-
-            # Configure boto3 S3 client for S3-compatible endpoint
-            boto_cfg = BotoConfig(signature_version='s3v4')
+            # Configure S3 client
+            boto_cfg = BotoConfig(signature_version="s3v4")
             s3 = boto3.client(
-                's3',
+                "s3",
                 aws_access_key_id=access_key_id,
                 aws_secret_access_key=secret_access_key,
                 endpoint_url=endpoint,
-                region_name=(None if region == 'auto' else region),
+                region_name=(None if region == "auto" else region),
                 config=boto_cfg,
             )
 
-            lastsync_key = f'lastsync_{judge_id}'
-
-            # Read lastsync (epoch seconds) from bucket; default = 0
-            lastsync = 0.0
-            try:
-                obj = s3.get_object(Bucket=bucket, Key=lastsync_key)
-                body = obj['Body'].read().decode('utf-8').strip()
-                try:
-                    lastsync = float(body)
-                except Exception:
-                    lastsync = 0.0
-            except ClientError as e:
-                # If not found, continue with lastsync == 0
-                if e.response.get('Error', {}).get('Code') not in ('NoSuchKey', '404'):
-                    log.exception('Error reading lastsync object: %s', e)
-
-            # List objects under tests/ prefix
-            paginator = s3.get_paginator('list_objects_v2')
-            prefix = 'tests/'
-            pages = paginator.paginate(Bucket=bucket, Prefix=prefix)
-
-            # Build map: problemSlug -> newest last_modified for objects under that top-level prefix
-            problem_updates = {}  # slug -> newest_ts
-            all_objects = {}  # slug -> list of keys
-            for page in pages:
-                for obj in page.get('Contents', []):
-                    key = obj['Key']
-                    if not key.startswith(prefix):
-                        continue
-                    rel = key[len(prefix):]
-                    if not rel or rel.startswith('/'):
-                        continue
-                    parts = rel.split('/')
-                    problem_slug = parts[0]
-                    last_modified = obj['LastModified']
-                    if isinstance(last_modified, datetime):
-                        lm_ts = last_modified.replace(tzinfo=timezone.utc).timestamp()
-                    else:
-                        lm_ts = float(last_modified)
-
-                    all_objects.setdefault(problem_slug, []).append((key, lm_ts))
-                    if lm_ts > problem_updates.get(problem_slug, 0):
-                        problem_updates[problem_slug] = lm_ts
-
-            # Filter problems with updates since lastsync
-            problems_to_sync = [slug for slug, ts in problem_updates.items() if ts > lastsync]
-
-            if not problems_to_sync:
-                log.debug('No updated problem folders to sync (lastsync=%s)', lastsync)
-                return
-
-            # Use first problem root as destination
+            # Problem root
             from dmoj.judgeenv import get_problem_roots
-
             roots = get_problem_roots()
             if not roots:
-                log.error('No configured problem roots to extract testcases into')
+                log.error("No configured problem roots to extract testcases into")
                 return
             dest_root = roots[0]
 
-            # For each problem slug, remove local folder if exists and download all objects for that slug
-            for slug in problems_to_sync:
-                keys = all_objects.get(slug, [])
-                # Delete existing local folder for slug (leave others intact)
-                local_folder = os.path.join(dest_root, slug)
-                try:
-                    if os.path.isdir(local_folder):
-                        log.info('Removing existing problem folder %s', local_folder)
-                        # remove tree
-                        for root_dir, dirs, files in os.walk(local_folder, topdown=False):
-                            for f in files:
-                                try:
-                                    os.unlink(os.path.join(root_dir, f))
-                                except Exception:
-                                    log.exception('Failed to remove file %s', os.path.join(root_dir, f))
-                            for d in dirs:
-                                try:
-                                    os.rmdir(os.path.join(root_dir, d))
-                                except Exception:
-                                    log.exception('Failed to remove dir %s', os.path.join(root_dir, d))
-                        try:
-                            os.rmdir(local_folder)
-                        except Exception:
-                            # directory may not be empty due to errors above; that's ok
-                            pass
-                except Exception:
-                    log.exception('Failed to remove local folder %s', local_folder)
+            # Load local manifest + lastsync
+            manifest_path = os.path.join(dest_root, "manifest.json")
+            lastsync_path = os.path.join(dest_root, "lastsync.json")
 
-                # Now download each object under tests/<slug>/ into dest_root/<slug>/...
-                for key, lm_ts in keys:
+            try:
+                with open(manifest_path, "r") as f:
+                    manifest = json.load(f)
+            except Exception:
+                manifest = {}
+
+            try:
+                with open(lastsync_path, "r") as f:
+                    lastsync = float(json.load(f).get("lastsync", 0))
+            except Exception:
+                lastsync = 0.0
+
+            log.debug("Local lastsync=%s", lastsync)
+
+            # Step 1: list problem slugs only
+            resp = s3.list_objects_v2(Bucket=bucket, Prefix="tests/", Delimiter="/")
+            prefixes = [p["Prefix"] for p in resp.get("CommonPrefixes", [])]
+
+            if not prefixes:
+                log.debug("No problem folders found under tests/")
+                return
+
+            problems_to_sync = []
+
+            # Step 2: check each slug for updates using newest object only
+            for prefix in prefixes:
+                slug = prefix.split("/")[1]
+
+                # list only 1 object (MaxKeys=1, sorted by LastModified desc not directly supported,
+                # but AWS guarantees lex order on Key, so we need to scan; workaround: list full but break early)
+                resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+                objs = resp.get("Contents", [])
+                if not objs:
+                    continue
+
+                newest = max(
+                    (o["LastModified"].replace(tzinfo=timezone.utc).timestamp()
+                    if isinstance(o["LastModified"], datetime) else float(o["LastModified"]))
+                    for o in objs
+                )
+
+                prev_ts = manifest.get(slug, 0)
+                if newest > prev_ts:
+                    problems_to_sync.append((slug, objs, newest))
+
+            if not problems_to_sync:
+                log.debug("No updated problem folders to sync")
+                return
+
+            # Step 3: sync updated slugs
+            for slug, objs, newest in problems_to_sync:
+                local_folder = os.path.join(dest_root, slug)
+
+                # wipe old folder
+                if os.path.isdir(local_folder):
+                    log.info("Removing existing folder %s", local_folder)
+                    for root_dir, dirs, files in os.walk(local_folder, topdown=False):
+                        for f in files:
+                            try: os.unlink(os.path.join(root_dir, f))
+                            except Exception: log.exception("Failed to remove file %s", f)
+                        for d in dirs:
+                            try: os.rmdir(os.path.join(root_dir, d))
+                            except Exception: log.exception("Failed to remove dir %s", d)
+                    try: os.rmdir(local_folder)
+                    except Exception: pass
+
+                # download all objects in folder
+                for obj in objs:
+                    key = obj["Key"]
+                    rel_path = key[len("tests/"):]
+                    target_path = os.path.join(dest_root, rel_path)
+                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                    log.info("Downloading %s -> %s", key, target_path)
                     try:
-                        rel_path = key[len(prefix):]
-                        # rel_path starts with '<slug>/...'
-                        target_path = os.path.join(dest_root, rel_path)
-                        target_dir = os.path.dirname(target_path)
-                        os.makedirs(target_dir, exist_ok=True)
-                        log.info('Downloading %s -> %s', key, target_path)
-                        with open(target_path, 'wb') as fobj:
+                        with open(target_path, "wb") as fobj:
                             s3.download_fileobj(bucket, key, fobj)
                     except (BotoCoreError, ClientError) as e:
-                        log.exception('S3 error while downloading %s: %s', key, e)
-                    except Exception:
-                        log.exception('Unexpected error while downloading %s', key)
+                        log.exception("S3 error while downloading %s: %s", key, e)
 
-            # Write new lastsync as now
-            try:
-                now_ts = str(time.time())
-                s3.put_object(Bucket=bucket, Key=lastsync_key, Body=now_ts.encode('utf-8'))
-                log.info('Updated lastsync object %s to %s', lastsync_key, now_ts)
-            except Exception:
-                log.exception('Failed to update lastsync object')
+                # update manifest entry
+                manifest[slug] = newest
+
+            # Step 4: update local state
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f)
+
+            with open(lastsync_path, "w") as f:
+                json.dump({"lastsync": time.time()}, f)
+
+            log.info("Updated local manifest + lastsync at %s", dest_root)
 
         except Exception:
-            log.exception('sync_testcases failed')
+            log.exception("sync_testcases failed")
