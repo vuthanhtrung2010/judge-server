@@ -480,10 +480,7 @@ class PacketManager:
                     except Exception:
                         pass
 
-                # Download each relevant .zip object
                 for key, _ in keys:
-                    if not key.lower().endswith('.zip'):
-                        continue
                     rel_path = key[len(prefix):]
                     target_path = os.path.join(dest_root, rel_path)
                     os.makedirs(os.path.dirname(target_path), exist_ok=True)
