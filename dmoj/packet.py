@@ -18,7 +18,7 @@ from botocore.config import Config as BotoConfig
 from botocore.exceptions import BotoCoreError, ClientError
 
 from dmoj import sysinfo
-from dmoj.judgeenv import get_runtime_versions, get_supported_problems_and_mtimes, get_problem_roots
+from dmoj.judgeenv import get_runtime_versions, get_supported_problems_and_mtimes, get_problem_roots, env
 from dmoj.result import Result
 from dmoj.utils.unicode import utf8bytes, utf8text
 
@@ -391,8 +391,7 @@ class PacketManager:
         """
         try:
             # Determine judge_id
-            from dmoj import judgeenv
-            judge_id = judgeenv.env.get('id') \
+            judge_id = env.get('id') \
                     or getattr(self.judge, 'name', None) \
                     or getattr(self, "name", None) \
                     or 'unknown'
